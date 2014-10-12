@@ -22,7 +22,7 @@ say_hi () { echo "Hello, $1!"; }
 eft_ask 'What is your name?' on_ok=say_hi
 ```
 
-  See also eft [2] (for ruby).
+  See also eft for ruby [2].
 
 []: }}}1
 
