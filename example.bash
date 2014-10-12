@@ -49,7 +49,7 @@ do_quuux_ok () {
   eft_show_text text_var=multi_choices title='Multiplied!'
 }
 do_quuux () {
-  Eft.check 'Which ones?' on_ok=do_quuux_ok \
+  eft_check 'Which ones?' on_ok=do_quuux_ok \
     choice 1 One      \
     choice 2 Two true \
     choice 3 Three
@@ -59,7 +59,7 @@ do_almost_ok () { echo "You chose: ${1:-'none!?'}"; }
 do_almost () {
   eft_radio 'One or none' on_ok=do_almost_ok \
     choice 1 One \
-    choice 2 Two \
+    choice 2 Two
 }
 
 do_last_ok () { echo "You chose: $1"; }
