@@ -41,14 +41,14 @@ do_baz () {
 }
 
 do_qux  () { eft_show_info 'Hi!'; }
-do_quux () { eft.show_text file=/etc/services scroll=true; }
+do_quux () { eft_show_text file=/etc/services scroll=true; }
 
 do_quuux_ok () {
   local choices=( "$@" ) multi_choices='' n="$#" i j
   for (( i=0; i < n * 10; ++i )); do
     j=$(( i % n )); multi_choices+="${choices[$j]}"$'\n'
   done
-  eft_show_text text_var=multi_choices title='Multiplied!'
+  eft_show_text text="$multi_choices" title='Multiplied!'
 }
 do_quuux () {
   eft_check 'Which ones?' on_ok=do_quuux_ok \
@@ -57,7 +57,7 @@ do_quuux () {
     choice 3 Three
 }
 
-do_almost_ok () { echo "You chose: ${1:-'none!?'}"; }
+do_almost_ok () { echo "You chose: ${1:-none!?}"; }
 do_almost () {
   eft_radio 'One or none' on_ok=do_almost_ok \
     choice 1 One \

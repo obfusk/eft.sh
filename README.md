@@ -28,7 +28,8 @@ eft_ask 'What is your name?' on_ok=say_hi
 
 ## TODO
 
-  * implement!
+  * implement gauge
+  * make cleanup error-resistant
   * nicer errors
 
 ## License
