@@ -26,6 +26,11 @@ eft_ask 'What is your name?' on_ok=say_hi
 
 []: }}}1
 
+## TODO
+
+  * implement!
+  * nicer errors
+
 ## License
 
   LGPLv3+ [3].

@@ -26,41 +26,35 @@ _eft_show_text=--textbox            _eft_ask=--inputbox
      _eft_menu=--menu             _eft_check=--checklist
     _eft_radio=--radiolist        _eft_gauge=--gauge
 
-# --
-
-# TODO {
-
-# CHECK_OPTS  = ['--separate-output']
-# local _eft_opts=() _eft_optvals=() _eft_whip_opts=()
-
-# } TODO
+_eft_check_opts=( --separate-output )
 
 # --
 
 # Usage: _eft_expect_args <#expect> <#got>
 _eft_expect_args () {
   local expect="$1" got="$2"
-  (( got >= expect )) || { echo WTF >&2; exit 1; }              # TODO
+  (( got >= expect )) || { echo EXPECT_WTF >&2; exit 1; }       # TODO
 }
 
-# Usage: _eft_opts_parse <arg(s)>
+# Usage: _eft_opts_parse <handler> <arg(s)>
 # Parses options; stops at items or choices.
 # Modifies $_eft_opt{{,val}s,__*}.
-# NB: shift actual args after parsing.
 _eft_opts_parse () {                                            # {{{1
-  local k v
+  local handler="$1" k v; shift
+  local _eft_opts=() _eft_optvals=() _eft_whip_opts=()
   while (( $# > 0 )); do
     if [ "$1" = item -o "$1" = choice ]; then
-      return 0
-    elif [[ "$1" =~ [a-z]+=(.*) ]]; then
+      break
+    elif [[ "$1" =~ ^([a-z_]+)=(.*)$ ]]; then
       k=( "${BASH_REMATCH[1]}" ) v=( "${BASH_REMATCH[2]}" )
-      eval "\$_eft_opt__$k=\$v"
+      eval "local _eft_opt__$k=\$v"
       _eft_opts+=( "$k" ); _eft_optvals+=( "$v" )
       shift
     else
-      echo WTF >&2; exit 1                                      # TODO
+      echo PARSE_WTF >&2; exit 1                                # TODO
     fi
   done
+  "$handler" "$@"
 }                                                               # }}}1
 
 # Usage: TODO
@@ -78,48 +72,33 @@ _eft_choices_parse () {
 # --
 
 # Uses $_eft_opt__*; modifies $_eft_whip_opts.
-_eft_opts_all () {                                              # {{{1
+_eft_opts_process () {                                          # {{{1
   [ -z "$_eft_opt__title" ] || \
     _eft_whip_opts+=( --title "$_eft_opt__title" )
   [ -z "$_eft_opt__backtitle" ] || \
     _eft_whip_opts+=( --backtitle "$_eft_opt__backtitle" )
   [ "$_eft_opt__scroll" != true ] || \
     _eft_whip_opts+=( --scrolltext  )
-}                                                               # }}}1
 
-# Uses $_eft_opt__*; modifies $_eft_whip_opts.
-_eft_opts_ok () {
   [ -z "$_eft_opt__ok_button" ] || \
     _eft_whip_opts+=( --ok-button "$_eft_opt__ok_button" )
-}
 
-# Uses $_eft_opt__*; modifies $_eft_whip_opts.
-_eft_opts_cancel () {
   [ -z "$_eft_opt__cancel_button" ] || \
     _eft_whip_opts+=( --cancel-button "$_eft_opt__cancel_button" )
   [ "$_eft_opt__no_cancel" != true ] || \
     _eft_whip_opts+=( --nocancel  )
-}
 
-# Uses $_eft_opt__*; modifies $_eft_whip_opts.
-_eft_opts_yes () {
   [ -z "$_eft_opt__yes_button" ] || \
     _eft_whip_opts+=( --yes-button "$_eft_opt__yes_button" )
-}
 
-# Uses $_eft_opt__*; modifies $_eft_whip_opts.
-_eft_opts_no () {
   [ -z "$_eft_opt__no_button" ] || \
     _eft_whip_opts+=( --no-button "$_eft_opt__no_button" )
   [ "$_eft_opt__default_no" != true ] || \
     _eft_whip_opts+=( --default-no  )
-}
 
-# Uses $_eft_opt__*; modifies $_eft_whip_opts.
-_eft_opts_menu () {
   [ -z "$_eft_opt__selected" ] || \
     _eft_whip_opts+=( --default-item "$_eft_opt__selected" )
-}
+}                                                               # }}}1
 
 # --
 
@@ -148,7 +127,16 @@ eft_show_text () {
 # Usage: eft_ask <text> [on_{esc,ok,cancel}=<handler>] [<opt(s)>]
 # ask for input w/ OK/Cancel buttons (and default)
 eft_ask () {
-  echo Not Implemented Yet
+  local text="$1"; _eft_expect_args 1 $#; shift 1
+  _eft_opts_parse _eft_ask_cont "$@"
+}
+_eft_ask_cont () {
+  local a=()
+  [ -z "$_eft_opt__default" ] || a+=( "$_eft_opt__default" )
+  _eft_whip _eft_ask_ok "$_eft_ask" "$text" no "${a[@]}"
+}
+_eft_ask_ok () {
+  _eft_call "$_eft_opt__on_ok" "$1"
 }
 
 # Usage: TODO
@@ -169,6 +157,8 @@ eft_ask_yesno () {
 # choose from menu w/ OK/Cancel buttons
 eft_menu () {
   echo Not Implemented Yet
+
+  # after parse, set $_eft_opt__subheight to $_eft_opt__menu_height
 }
 
 # --
@@ -177,12 +167,16 @@ eft_menu () {
 # choose checkboxes w/ OK/Cancel buttons
 eft_check () {
   echo Not Implemented Yet
+
+  # after parse, set $_eft_opt__subheight to $_eft_opt__list_height
 }
 
 # Usage: TODO
 # choose radiobutton w/ OK/Cancel buttons
 eft_radio () {
   echo Not Implemented Yet
+
+  # after parse, set $_eft_opt__subheight to $_eft_opt__list_height
 }
 
 # --
@@ -196,23 +190,39 @@ eft_gauge () {
 
 # --
 
-# Usage: TODO
-_eft_whip () {
+# Usage: _eft_whip <handler> <what> <text> <subh> <arg(s)>
+_eft_whip () {                                                  # {{{1
+  local handler="$1" what="$2" text="$3" subh="$4" h w s z; shift 4
   local _eft_whip_exit _eft_whip_lines
-
-  echo TODO
-
-  # ...
-}
+  _eft_opts_process
+  [ "$what" != "$_eft_check" ] || \
+    _eft_whip_opts+=( "${_eft_check_opts[@]}" )
+  h="${_eft_opt__height:-$(( $(_eft_lines) - 4 ))}"
+  w="${_eft_opt__width:-$((  $(_eft_cols ) - 4 ))}"
+  s="${_eft_opt__subheight:-$(( h          - 8 ))}"
+  z=$( [ "$subh" != yes ] || echo "$s" )
+  _eft_run_whip "${_eft_whip_opts[@]}" "$what" -- \
+    "$text" "$h" "$w" $z "$@"
+  case "$_eft_whip_exit" in
+    $_eft_exit_ok_yes)    _eft_call "$handler" \
+                            "${_eft_whip_lines[@]}"         ;;
+    $_eft_exit_cancel_no) _eft_call "$_eft_opt__on_cancel"
+                          _eft_call "$_eft_opt__on_no"      ;;
+    $_eft_exit_esc)       _eft_call "$_eft_opt__on_esc"     ;;
+    *)                    echo EXIT_WTF >&2; exit 1         ;;  # TODO
+  esac
+}                                                               # }}}1
 
 # Usage: _eft_run_whip <arg(s)>
 # Modifies $_eft_whip_{exit,lines}
 _eft_run_whip () {                                              # {{{1
-  local tempdir="$( mktemp -d )" pid
+  local tempdir="$( mktemp -d )" pid d e
   mkfifo -m 700 "$tempdir/fifo"
-  "$_eft_whiptail" "$@" > "$tempdir/fifo" & pid=$!
+  "$_eft_whiptail" "$@" 2> "$tempdir/fifo" & pid=$!
   _eft_whip_lines=()
-  while read -r; do
+  d=n; while [ "$d" = n ]; do
+    set +e; read -r; e=$?; set -e
+    if [ $e != 0 ]; then d=y; [ -n "$REPLY" ] || break; fi
     _eft_whip_lines+=( "$REPLY" )
   done < "$tempdir/fifo"
   set +e; wait "$pid"; _eft_whip_exit=$?; set -e
@@ -234,5 +244,11 @@ _eft_lambda () {
   (( _eft_lambda += 1 ))
   echo "$f"
 }
+
+# Usage: _eft_call { <cmd> | '' } <arg(s)>
+_eft_call () { [ -z "$1" ] || "$@"; }
+
+_eft_cols   () { TERM=${TERM:-dumb} tput cols ; }
+_eft_lines  () { TERM=${TERM:-dumb} tput lines; }
 
 # vim: set tw=70 sw=2 sts=2 et fdm=marker :

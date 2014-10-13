@@ -2,11 +2,6 @@
 
 source ./eft.bash
 
-say_hi () { echo "Hello, $1!"; }
-eft_ask 'What is your name?' on_ok=say_hi
-
-exit 0
-
 do_cancel () { echo 'Not interested.'; }
 do_esc    () { echo 'Escaped!'; }
 
