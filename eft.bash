@@ -30,115 +30,6 @@ _eft_opts=() _eft_check_opts=( --separate-output )
 
 # --
 
-# Usage: _eft_expect_args <#expect> <#got>
-_eft_expect_args () {
-  local expect="$1" got="$2"
-  (( got >= expect )) || _eft_die EXPECT_WTF                    # TODO
-}
-
-# Usage: _eft_opts_parse <handler> <arg(s)>
-# parse options; stop at items or choices;
-# modifies $_eft_{{,whip_}opts,opt__*}
-_eft_opts_parse () {                                            # {{{1
-  _eft_opts_clean
-  local handler="$1" k v _eft_opts=() _eft_whip_opts=(); shift
-  while (( $# > 0 )); do
-    if [ "$1" = item -o "$1" = choice ]; then
-      break
-    elif [[ "$1" =~ ^([a-z_]+)=(.*)$ ]]; then
-      k=( "${BASH_REMATCH[1]}" ) v=( "${BASH_REMATCH[2]}" )
-      local "_eft_opt__$k=$v"; _eft_opts+=( "$k" ); shift
-    else
-      _eft_die PARSE_WTF                                        # TODO
-    fi
-  done
-  "$handler" "$@"
-}                                                               # }}}1
-
-_eft_opts_clean () {
-  local k; for k in "${_eft_opts[@]}"; do unset "_eft_opt__$k"; done
-}
-
-# Usage: _eft_items_parse <handler> <arg(s)>
-# parse items; modifies $_eft_menu_{arg,tag,handler}s
-_eft_items_parse () {                                           # {{{1
-  local handler="$1"; shift
-  local _eft_menu_args=() _eft_menu_tags=() _eft_menu_handlers=()
-  while (( $# > 0 )); do
-    # item <tag> <item> <handler>
-    [ "$1" = item ] || _eft_die ITEM_NO_ITEM_WTF                # TODO
-    [ "$#" -ge 4 ] || _eft_die ITEM_MISSING_WTF                 # TODO
-    _eft_menu_args+=(     "$2" "$3" )
-    _eft_menu_tags+=(     "$2"      )
-    _eft_menu_handlers+=( "$4"      )
-    shift 4
-  done
-  "$handler"
-}                                                               # }}}1
-
-# Usage: _eft_check_choices_parse <handler> <arg(s)>
-# parse choices; modifies $_eft_check_args
-_eft_check_choices_parse () {                                   # {{{1
-  local handler="$1" _eft_check_args=() n s; shift
-  while (( $# > 0 )); do
-    # choice <tag> <item> [true]
-    [ "$1" = choice ] || _eft_die CHOICE_NO_CHOICE_WTF          # TODO
-    [ "$#" -ge 3 ] || _eft_die CHOICE_MISSING_WTF               # TODO
-    if [ "$4" = true ]; then n=4; s=on; else n=3; s=off; fi
-    _eft_check_args+=( "$2" "$3" "$s" )
-    shift "$n"
-  done
-  "$handler"
-}                                                               # }}}1
-
-# Usage: _eft_radio_choices_parse <handler> <arg(s)>
-# parse choices; modifies $_eft_radio_args
-_eft_radio_choices_parse () {                                   # {{{1
-  local handler="$1" _eft_radio_args=() s; shift
-  while (( $# > 0 )); do
-    # choice <tag> <item>
-    [ "$1" = choice ] || _eft_die CHOICE_NO_CHOICE_WTF          # TODO
-    [ "$#" -ge 3 ] || _eft_die CHOICE_MISSING_WTF               # TODO
-    if [ "$_eft_opt__selected" = "$2" ]; then s=on; else s=off; fi
-    _eft_radio_args+=( "$2" "$3" "$s" )
-    shift 3
-  done
-  "$handler"
-}                                                               # }}}1
-
-# --
-
-# uses $_eft_opt__*; modifies $_eft_whip_opts
-_eft_opts_process () {                                          # {{{1
-  [ -z "$_eft_opt__title" ] || \
-    _eft_whip_opts+=( --title "$_eft_opt__title" )
-  [ -z "$_eft_opt__backtitle" ] || \
-    _eft_whip_opts+=( --backtitle "$_eft_opt__backtitle" )
-  [ "$_eft_opt__scroll" != true ] || \
-    _eft_whip_opts+=( --scrolltext  )
-
-  [ -z "$_eft_opt__ok_button" ] || \
-    _eft_whip_opts+=( --ok-button "$_eft_opt__ok_button" )
-
-  [ -z "$_eft_opt__cancel_button" ] || \
-    _eft_whip_opts+=( --cancel-button "$_eft_opt__cancel_button" )
-  [ "$_eft_opt__no_cancel" != true ] || \
-    _eft_whip_opts+=( --nocancel  )
-
-  [ -z "$_eft_opt__yes_button" ] || \
-    _eft_whip_opts+=( --yes-button "$_eft_opt__yes_button" )
-
-  [ -z "$_eft_opt__no_button" ] || \
-    _eft_whip_opts+=( --no-button "$_eft_opt__no_button" )
-  [ "$_eft_opt__default_no" != true ] || \
-    _eft_whip_opts+=( --default-no  )
-
-  [ -z "$_eft_opt__selected_" ] || \
-    _eft_whip_opts+=( --default-item "$_eft_opt__selected_" )
-}                                                               # }}}1
-
-# --
-
 # Usage: eft_show_info <text> [<opt(s)>]
 # show message w/o buttons, don't clear screen
 eft_show_info () {
@@ -299,6 +190,115 @@ _eft_radio_ok () {
 eft_gauge () {
   echo Not Implemented Yet
 }
+
+# --
+
+# Usage: _eft_expect_args <#expect> <#got>
+_eft_expect_args () {
+  local expect="$1" got="$2"
+  (( got >= expect )) || _eft_die EXPECT_WTF                    # TODO
+}
+
+# Usage: _eft_opts_parse <handler> <arg(s)>
+# parse options; stop at items or choices;
+# modifies $_eft_{{,whip_}opts,opt__*}
+_eft_opts_parse () {                                            # {{{1
+  _eft_opts_clean
+  local handler="$1" k v _eft_opts=() _eft_whip_opts=(); shift
+  while (( $# > 0 )); do
+    if [ "$1" = item -o "$1" = choice ]; then
+      break
+    elif [[ "$1" =~ ^([a-z_]+)=(.*)$ ]]; then
+      k=( "${BASH_REMATCH[1]}" ) v=( "${BASH_REMATCH[2]}" )
+      local "_eft_opt__$k=$v"; _eft_opts+=( "$k" ); shift
+    else
+      _eft_die PARSE_WTF                                        # TODO
+    fi
+  done
+  "$handler" "$@"
+}                                                               # }}}1
+
+_eft_opts_clean () {
+  local k; for k in "${_eft_opts[@]}"; do unset "_eft_opt__$k"; done
+}
+
+# Usage: _eft_items_parse <handler> <arg(s)>
+# parse items; modifies $_eft_menu_{arg,tag,handler}s
+_eft_items_parse () {                                           # {{{1
+  local handler="$1"; shift
+  local _eft_menu_args=() _eft_menu_tags=() _eft_menu_handlers=()
+  while (( $# > 0 )); do
+    # item <tag> <item> <handler>
+    [ "$1" = item ] || _eft_die ITEM_NO_ITEM_WTF                # TODO
+    [ "$#" -ge 4 ] || _eft_die ITEM_MISSING_WTF                 # TODO
+    _eft_menu_args+=(     "$2" "$3" )
+    _eft_menu_tags+=(     "$2"      )
+    _eft_menu_handlers+=( "$4"      )
+    shift 4
+  done
+  "$handler"
+}                                                               # }}}1
+
+# Usage: _eft_check_choices_parse <handler> <arg(s)>
+# parse choices; modifies $_eft_check_args
+_eft_check_choices_parse () {                                   # {{{1
+  local handler="$1" _eft_check_args=() n s; shift
+  while (( $# > 0 )); do
+    # choice <tag> <item> [true]
+    [ "$1" = choice ] || _eft_die CHOICE_NO_CHOICE_WTF          # TODO
+    [ "$#" -ge 3 ] || _eft_die CHOICE_MISSING_WTF               # TODO
+    if [ "$4" = true ]; then n=4; s=on; else n=3; s=off; fi
+    _eft_check_args+=( "$2" "$3" "$s" )
+    shift "$n"
+  done
+  "$handler"
+}                                                               # }}}1
+
+# Usage: _eft_radio_choices_parse <handler> <arg(s)>
+# parse choices; modifies $_eft_radio_args
+_eft_radio_choices_parse () {                                   # {{{1
+  local handler="$1" _eft_radio_args=() s; shift
+  while (( $# > 0 )); do
+    # choice <tag> <item>
+    [ "$1" = choice ] || _eft_die CHOICE_NO_CHOICE_WTF          # TODO
+    [ "$#" -ge 3 ] || _eft_die CHOICE_MISSING_WTF               # TODO
+    if [ "$_eft_opt__selected" = "$2" ]; then s=on; else s=off; fi
+    _eft_radio_args+=( "$2" "$3" "$s" )
+    shift 3
+  done
+  "$handler"
+}                                                               # }}}1
+
+# --
+
+# uses $_eft_opt__*; modifies $_eft_whip_opts
+_eft_opts_process () {                                          # {{{1
+  [ -z "$_eft_opt__title" ] || \
+    _eft_whip_opts+=( --title "$_eft_opt__title" )
+  [ -z "$_eft_opt__backtitle" ] || \
+    _eft_whip_opts+=( --backtitle "$_eft_opt__backtitle" )
+  [ "$_eft_opt__scroll" != true ] || \
+    _eft_whip_opts+=( --scrolltext  )
+
+  [ -z "$_eft_opt__ok_button" ] || \
+    _eft_whip_opts+=( --ok-button "$_eft_opt__ok_button" )
+
+  [ -z "$_eft_opt__cancel_button" ] || \
+    _eft_whip_opts+=( --cancel-button "$_eft_opt__cancel_button" )
+  [ "$_eft_opt__no_cancel" != true ] || \
+    _eft_whip_opts+=( --nocancel  )
+
+  [ -z "$_eft_opt__yes_button" ] || \
+    _eft_whip_opts+=( --yes-button "$_eft_opt__yes_button" )
+
+  [ -z "$_eft_opt__no_button" ] || \
+    _eft_whip_opts+=( --no-button "$_eft_opt__no_button" )
+  [ "$_eft_opt__default_no" != true ] || \
+    _eft_whip_opts+=( --default-no  )
+
+  [ -z "$_eft_opt__selected_" ] || \
+    _eft_whip_opts+=( --default-item "$_eft_opt__selected_" )
+}                                                               # }}}1
 
 # --
 
