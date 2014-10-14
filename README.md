@@ -9,6 +9,8 @@
 
 []: }}}1
 
+[![GitHub Version](https://badge.fury.io/gh/obfusk%2Feft.sh.svg)](https://github.com/obfusk/eft.sh)
+
 ## Description
 []: {{{1
 
