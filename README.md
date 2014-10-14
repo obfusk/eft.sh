@@ -2,10 +2,10 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2014-10-12
+    Date        : 2014-10-14
 
     Copyright   : Copyright (C) 2014  Felix C. Stegerman
-    Version     : v0.0.1
+    Version     : v0.1.0
 
 []: }}}1
 
@@ -28,7 +28,6 @@ eft_ask 'What is your name?' on_ok=say_hi
 
 ## TODO
 
-  * implement gauge
   * make cleanup error-resistant
   * nicer errors
 

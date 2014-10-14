@@ -26,12 +26,12 @@ do_bar () {
 }
 
 do_baz_start () {
-  local baz_mv="$1" i
-  for (( i=0; i < 100; ++i )); do
+  local i
+  for (( i=0; i <= 100; ++i )); do
     if (( i % 5 == 0 )); then
-      "$baz_mv" "$i" "We're at #$i ..."
+      eft_gauge_mv "$i" "We're at #$i ..."
     else
-      "$baz_mv" "$i"
+      eft_gauge_mv "$i"
     fi
     sleep 0.05
   done
