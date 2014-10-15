@@ -2,10 +2,11 @@
 #
 # File        : eft.bash
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2014-10-14
+# Date        : 2014-10-15
 #
 # Copyright   : Copyright (C) 2014  Felix C. Stegerman
 # Licence     : LGPLv3+
+# Version     : v0.2.0
 #
 # --                                                            ; }}}1
 
@@ -13,19 +14,11 @@ set -e
 
 # --
 
-# NB: dialog works as well as whiptail, but these options will be
-# incompatible: --*-button (is: --*-label), --scrolltext
-
-_eft_whiptail=whiptail
-_eft_exit_ok_yes=0 _eft_exit_cancel_no=1 _eft_exit_esc=255
-
-_eft_show_info=--infobox       _eft_show_msg=--msgbox
-_eft_show_text=--textbox            _eft_ask=--inputbox
- _eft_ask_pass=--passwordbox  _eft_ask_yesno=--yesno
-     _eft_menu=--menu             _eft_check=--checklist
-    _eft_radio=--radiolist        _eft_gauge=--gauge
-
-_eft_opts=() _eft_check_opts=( --separate-output )
+# NB: you should `trap eft_cleanup EXIT` to ensure eft cleans up
+# temporary files and directories even when an error occurs
+eft_cleanup () {
+  rm -fr "${_eft_tempdirs[@]}" ; _eft_tempdirs=() _eft_tempdirs_i=0
+}
 
 # --
 
@@ -137,7 +130,7 @@ _eft_menu_ok () {                                               # {{{1
       return
     fi
   done
-  _eft_die TAG_WTF                                              # TODO
+  _eft_die "unexpected tag '$_eft_tag'"
 }                                                               # }}}1
 
 # --
@@ -192,7 +185,9 @@ eft_gauge () {
 }
 _eft_gauge_cont () {                                            # {{{1
   _eft_whip_prepare_cmd "$_eft_gauge" "$_eft_text" no "$_eft_pct"
-  local _eft_whip_exit _eft_tempdir="$( mktemp -d )" _eft_pid
+  local _eft_whip_exit _eft_pid
+  local _eft_tempdir="$( mktemp -d )" _eft_i="$_eft_tempdirs_i"
+  _eft_tempdirs[$_eft_i]="$_eft_tempdir" ; (( ++_eft_tempdirs_i ))
   mkfifo -m 700 "$_eft_tempdir/fifo"
   "$_eft_whiptail" "${_eft_whip_cmd[@]}" < "$_eft_tempdir/fifo" &
   _eft_pid=$! ; exec 3> "$_eft_tempdir/fifo"
@@ -208,16 +203,34 @@ _eft_gauge_cont () {                                            # {{{1
 
   "$_eft_opt__on_start" ; exec 3>&- # close fd
   set +e; wait "$_eft_pid"; _eft_whip_exit=$?; set -e
-  rm -fr "$_eft_tempdir" ; unset -f eft_gauge_mv                # TODO
-  [ "$_eft_whip_exit" = 0 ] || _eft_die EXIT_WTF                # TODO
+  unset _eft_tempdirs[$_eft_i] ; rm -fr "$_eft_tempdir"
+  unset -f eft_gauge_mv
+  [ "$_eft_whip_exit" = 0 ] || _eft_die 'exitstatus != 0'
 }                                                               # }}}1
+
+# *** INTERNAL VARIABLES & FUNCTIONS *********************************
+
+# NB: dialog works as well as whiptail, but these options will be
+# incompatible: --*-button (is: --*-label), --scrolltext
+
+_eft_whiptail=whiptail
+_eft_exit_ok_yes=0 _eft_exit_cancel_no=1 _eft_exit_esc=255
+
+_eft_show_info=--infobox       _eft_show_msg=--msgbox
+_eft_show_text=--textbox            _eft_ask=--inputbox
+ _eft_ask_pass=--passwordbox  _eft_ask_yesno=--yesno
+     _eft_menu=--menu             _eft_check=--checklist
+    _eft_radio=--radiolist        _eft_gauge=--gauge
+
+_eft_opts=() _eft_check_opts=( --separate-output )
+_eft_tempdirs=() _eft_tempdirs_i=0
 
 # --
 
 # Usage: _eft_expect_args <#expect> <#got>
 _eft_expect_args () {
   local expect="$1" got="$2"
-  (( got >= expect )) || _eft_die EXPECT_WTF                    # TODO
+  (( got >= expect )) || _eft_die "expected at least $1 args, got $2"
 }
 
 # Usage: _eft_opts_parse <handler> <arg(s)>
@@ -235,7 +248,7 @@ _eft_opts_parse () {                                            # {{{1
       local "_eft_opt__$_eft_k=$_eft_v"; _eft_opts+=( "$_eft_k" )
       shift
     else
-      _eft_die PARSE_WTF                                        # TODO
+      _eft_die "parser expected option/item/choice, got '$1'"
     fi
   done
   "$_eft_handler" "$@"
@@ -252,8 +265,8 @@ _eft_items_parse () {                                           # {{{1
   local _eft_menu_args=() _eft_menu_tags=() _eft_menu_handlers=()
   while (( $# > 0 )); do
     # item <tag> <item> <handler>
-    [ "$1" = item ] || _eft_die ITEM_NO_ITEM_WTF                # TODO
-    [ "$#" -ge 4 ] || _eft_die ITEM_MISSING_WTF                 # TODO
+    [ "$1" = item ] || _eft_die 'parser expected item'
+    [ "$#" -ge 4 ]  || _eft_die 'parser expected 3 args for item'
     _eft_menu_args+=(     "$2" "$3" )
     _eft_menu_tags+=(     "$2"      )
     _eft_menu_handlers+=( "$4"      )
@@ -268,8 +281,8 @@ _eft_check_choices_parse () {                                   # {{{1
   local _eft_handler="$1" _eft_check_args=() _eft_n _eft_s; shift
   while (( $# > 0 )); do
     # choice <tag> <item> [true]
-    [ "$1" = choice ] || _eft_die CHOICE_NO_CHOICE_WTF          # TODO
-    [ "$#" -ge 3 ] || _eft_die CHOICE_MISSING_WTF               # TODO
+    [ "$1" = choice ] || _eft_die 'parser expected choice'
+    [ "$#" -ge 3 ]    || _eft_die 'parser expected 2/3 args for item'
     if [ "$4" = true ]; then
       _eft_n=4; _eft_s=on
     else
@@ -287,8 +300,8 @@ _eft_radio_choices_parse () {                                   # {{{1
   local _eft_handler="$1" _eft_radio_args=() _eft_s; shift
   while (( $# > 0 )); do
     # choice <tag> <item>
-    [ "$1" = choice ] || _eft_die CHOICE_NO_CHOICE_WTF          # TODO
-    [ "$#" -ge 3 ] || _eft_die CHOICE_MISSING_WTF               # TODO
+    [ "$1" = choice ] || _eft_die 'parser expected choice'
+    [ "$#" -ge 3 ]    || _eft_die 'parser expected 2 args for item'
     if [ "$_eft_opt__selected" = "$2" ]; then
       _eft_s=on
     else
@@ -345,7 +358,7 @@ _eft_whip () {                                                  # {{{1
     $_eft_exit_cancel_no) _eft_call "$_eft_opt__on_cancel"
                           _eft_call "$_eft_opt__on_no"      ;;
     $_eft_exit_esc)       _eft_call "$_eft_opt__on_esc"     ;;
-    *)                    _eft_die EXIT_WTF                 ;;  # TODO
+    *) _eft_die  "unknown exitstatus ($_eft_whip_exit)"
   esac
 }                                                               # }}}1
 
@@ -366,7 +379,8 @@ _eft_whip_prepare_cmd () {                                      # {{{1
 # Usage: _eft_run_whip <arg(s)>
 # modifies $_eft_whip_{exit,lines}
 _eft_run_whip () {                                              # {{{1
-  local tempdir="$( mktemp -d )" pid d e
+  local tempdir="$( mktemp -d )" i="$_eft_tempdirs_i" pid d e
+  _eft_tempdirs[$i]="$tempdir" ; (( ++_eft_tempdirs_i ))
   mkfifo -m 700 "$tempdir/fifo"
   "$_eft_whiptail" "$@" 2> "$tempdir/fifo" & pid=$!
   _eft_whip_lines=()
@@ -376,7 +390,7 @@ _eft_run_whip () {                                              # {{{1
     _eft_whip_lines+=( "$REPLY" )
   done < "$tempdir/fifo"
   set +e; wait "$pid"; _eft_whip_exit=$?; set -e
-  rm -fr "$tempdir"                                             # TODO
+  unset _eft_tempdirs[$i] ; rm -fr "$tempdir"
 }                                                               # }}}1
 
 # --
@@ -385,14 +399,16 @@ _eft_run_whip () {                                              # {{{1
 _eft_file_or_temp () {                                          # {{{1
   local _eft_handler="$1"
   local _eft_f="$_eft_opt__file" _eft_t="$_eft_opt__text"
-  [ -z "$_eft_f" -o -z "$_eft_t" ] || _eft_die BOTH_WTF         # TODO
+  [ -z "$_eft_f" -o -z "$_eft_t" ] || \
+    _eft_die "can't have file and text"
   if [ -n "$_eft_f" ]; then
     "$_eft_handler" "$_eft_f"
   else
-    local _eft_tempdir="$( mktemp -d )"
+    local _eft_tempdir="$( mktemp -d )" _eft_i="$_eft_tempdirs_i"
+    _eft_tempdirs[$_eft_i]="$_eft_tempdir" ; (( ++_eft_tempdirs_i ))
     printf %s "$_eft_t" > "$_eft_tempdir/eft"
     "$_eft_handler" "$_eft_tempdir/eft"
-    rm -fr "$_eft_tempdir"                                      # TODO
+    unset _eft_tempdirs[$_eft_i] ; rm -fr "$_eft_tempdir"
   fi
 }                                                               # }}}1
 
@@ -402,6 +418,6 @@ _eft_call () { [ -z "$1" ] || "$@"; }
 _eft_cols   () { TERM=${TERM:-dumb} tput cols ; }
 _eft_lines  () { TERM=${TERM:-dumb} tput lines; }
 
-_eft_die () { echo "$@" >&2; exit 1; }
+_eft_die () { echo Error: "$@" >&2; exit 1; }
 
 # vim: set tw=70 sw=2 sts=2 et fdm=marker :

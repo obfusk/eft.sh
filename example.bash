@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ./eft.bash
+source ./eft.bash ; trap eft_cleanup EXIT
 
 do_cancel () { echo 'Not interested.'; }
 do_esc    () { echo 'Escaped!'; }

@@ -2,10 +2,10 @@
 
     File        : README.md
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2014-10-14
+    Date        : 2014-10-15
 
     Copyright   : Copyright (C) 2014  Felix C. Stegerman
-    Version     : v0.1.0
+    Version     : v0.2.0
 
 []: }}}1
 
@@ -27,11 +27,6 @@ eft_ask 'What is your name?' on_ok=say_hi
   See also eft for ruby [2].
 
 []: }}}1
-
-## TODO
-
-  * make cleanup error-resistant
-  * nicer errors
 
 ## License
 
